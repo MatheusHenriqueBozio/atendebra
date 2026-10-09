@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AtendeBra · Protótipo navegável</title>
+<meta name="description" content="Protótipo navegável do AtendeBra: contestação de Pix e cancelamento de cartão no atendimento do Bradesco. Caso de estudo de Product Design.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23cc092f'/%3E%3Cpath d='M9 22l7-13 7 13h-4l-3-6-3 6z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <button class="btn menu-btn" id="menu" aria-label="Abrir lista de telas">☰ Telas</button>
+    <div class="brand"><span class="wm">Atende<b>Bra</b></span><span class="tag">Protótipo navegável</span></div>
+    <div class="sp"></div>
+    <label class="sw"><input type="checkbox" id="hsT"><i></i><span>Mostrar áreas clicáveis</span></label>
+    <button class="btn" id="restart">↺ Recomeçar</button>
+  </header>
+
+  <nav class="rail" id="rail" aria-label="Telas do protótipo"></nav>
+
+  <main class="main">
+    <section class="cap">
+      <div class="tx">
+        <div class="kick" id="kick"></div>
+        <h1 id="title"></h1>
+        <p id="desc"></p>
+      </div>
+    </section>
+    <div class="mission" id="mission" hidden></div>
+    <div class="tools" id="tools"></div>
+    <div class="frame" id="frame">
+      <div class="bar"><i></i><i></i><i></i><span id="barlbl">AtendeBra</span></div>
+      <div class="scroller" id="scroller">
+        <div class="page" id="page"></div>
+      </div>
+      <div class="end" id="end"></div>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+    <div class="help"><span><kbd>H</kbd> mostra as áreas clicáveis</span><span><kbd>←</kbd> ou <kbd>Esc</kbd> volta</span><span>Dados fictícios, sem nenhuma informação real de clientes.</span></div>
+  </main>
+</div>
+<script src="sizes.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
