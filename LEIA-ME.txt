@@ -1,0 +1,7 @@
+REPO atendebra (raiz): substitua index.html, style.css e app.js, e adicione teste.js.
+
+Depois do deploy:
+  - Protótipo normal (portfólio, Behance): atendebra.vercel.app  -> igual a antes
+  - Modo teste: atendebra.vercel.app/?teste=1&p=P01  (troque P01 a cada participante)
+
+Clarity (opcional): abra teste.js e cole o ID do projeto em  var CLARITY_ID = '';

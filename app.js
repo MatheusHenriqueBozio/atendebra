@@ -14,6 +14,10 @@
   var timer = null, toastT = null, hsTimer = null;
   var depth = 0;            // quantas telas já foram empilhadas no histórico do navegador
   var missionDone = false;
+  var TEST = /[?&]teste=1\b/.test(location.search);  // modo teste de usabilidade (teste.js)
+  var gen = 0;              // muda a cada tarefa do modo teste; entradas antigas do histórico são ignoradas
+  var LST = {};
+  function emit(ev, data) { (LST[ev] || []).forEach(function (f) { try { f(data); } catch (e) { if (window.console) console.error(e); } }); }
 
   var FAM = { roubo: 'Roubo', furto: 'Furto', fraude: 'Fraude', perda: 'Perda' };
   var NOFAM = { enc: 'Encerramento de conta', fal: 'Falecimento', des: 'Desinteresse', out: 'Outros' };
@@ -298,8 +302,8 @@
   function go(id, patch, replace) {
     clearTimeout(timer); pop = null;
     st = norm(Object.assign({}, st, patch || {}, { id: id }));
-    if (replace) history.replaceState({ st: st, n: depth }, '', hashOf(st));
-    else { depth++; history.pushState({ st: st, n: depth }, '', hashOf(st)); }
+    if (replace) history.replaceState({ st: st, n: depth, g: gen }, '', hashOf(st));
+    else { depth++; history.pushState({ st: st, n: depth, g: gen }, '', hashOf(st)); }
     render();
   }
   function back() {
@@ -309,13 +313,14 @@
   }
   window.addEventListener('popstate', function (e) {
     clearTimeout(timer); pop = null;
+    if (TEST && (!e.state || e.state.g !== gen)) { history.pushState({ st: st, n: depth, g: gen }, '', hashOf(st)); render(); return; }
     if (e.state && e.state.st) { st = norm(Object.assign({}, DEF, e.state.st)); depth = e.state.n || 0; }
     else { st = parseHash(); depth = 0; }
     render();
   });
   function set(patch) {
     pop = null; st = Object.assign({}, st, patch);
-    history.replaceState({ st: st, n: depth }, '', hashOf(st));
+    history.replaceState({ st: st, n: depth, g: gen }, '', hashOf(st));
     render();
   }
 
@@ -337,6 +342,7 @@
   }
 
   function act(def) {
+    emit('hs', { def: def, screen: st.id, st: st });
     if (def.pop) { pop = { k: def.pop.k, at: def.pop.at }; renderPop(); return; }
     if (def.act === 'back') { if (def.toast) toast(def.toast); back(); return; }
     if (def.act === 'toExtrato') { scrollToY(def.y); toast('Escolha a transação que o cliente quer contestar.'); flash(); return; }
@@ -349,7 +355,7 @@
     var k = page.clientWidth / W0;
     scroller.scrollTo({ top: Math.max(0, y * k - 20), behavior: window.matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth' });
   }
-  function flash() { page.classList.remove('pulse'); void page.offsetWidth; page.classList.add('pulse'); setTimeout(function () { page.classList.remove('pulse'); }, 1500); }
+  function flash() { if (TEST) return; page.classList.remove('pulse'); void page.offsetWidth; page.classList.add('pulse'); setTimeout(function () { page.classList.remove('pulse'); }, 1500); }
 
   function render() {
     var sc = SCREENS[st.id];
@@ -365,7 +371,7 @@
     sc.hs(st).forEach(function (d) { page.appendChild(mkHs(d, H, W0, act)); });
     renderPop();
     if (changed) { scroller.scrollTop = 0; scroller.scrollLeft = 0; }
-    page.classList.remove('pulse'); void page.offsetWidth; if (changed) { page.classList.add('pulse'); }
+    page.classList.remove('pulse'); void page.offsetWidth; if (changed && !TEST) { page.classList.add('pulse'); }
 
     // legenda
     var mis = mission();
@@ -381,6 +387,7 @@
     renderRail();
     renderEnd(sc);
     $('#frame').dataset.screen = st.id;
+    emit('screen', { id: st.id, st: st });
 
     clearTimeout(timer);
     if (sc.auto) { var id = st.id; timer = setTimeout(function () { if (st.id === id) go(sc.auto.to, null, true); }, sc.auto.ms); }
@@ -408,6 +415,7 @@
     var im = new Image(); im.src = 'img/' + name + '.webp'; im.alt = ''; im.draggable = false; d.appendChild(im);
     P.hs.forEach(function (def) {
       var b = mkHs(def, sz[1], sz[0], function (df) {
+        emit('hs', { def: df, screen: st.id, st: st, pop: pop && pop.k });
         if (df.toast) toast(df.toast);
         if (df.close) closePop();
         if (df.to) go(df.to, df.set);
@@ -415,6 +423,7 @@
       d.appendChild(b);
     });
     page.appendChild(d);
+    emit('pop', { k: pop.k, screen: st.id, st: st });
     if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
@@ -515,16 +524,39 @@
   $('#menu').addEventListener('click', function () { $('#app').classList.toggle('open'); });
   document.addEventListener('keydown', function (e) {
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-    if (e.key === 'h' || e.key === 'H') setHs(!$('#frame').classList.contains('show'));
+    if ((e.key === 'h' || e.key === 'H') && !TEST) setHs(!$('#frame').classList.contains('show'));
     else if (e.key === 'Escape') { if (pop) closePop(); else back(); }
     else if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); back(); }
   });
 
+  /* --------------------------------------------- cliques fora de área clicável */
+  page.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('.hs,.catch,.pop')) return;
+    emit('miss', { screen: st.id, st: st, x: e.offsetX / page.clientWidth, y: e.offsetY / page.clientHeight });
+  });
+
+  /* ---- API para o modo teste */
+  window.AB = {
+    test: TEST,
+    on: function (ev, f) { (LST[ev] = LST[ev] || []).push(f); },
+    state: function () { return st; },
+    start: function (s) {   // começa uma tarefa do zero, sem histórico para trás
+      gen++; clearTimeout(timer); pop = null; depth = 0; visited = {};
+      st = norm(Object.assign({}, DEF, s || {}));
+      history.pushState({ st: st, n: 0, g: gen }, '', hashOf(st));
+      shown = null; render();
+    },
+    closePop: function () { if (pop) closePop(); }
+  };
+
   /* ------------------------------------------------------------------- início */
   st = parseHash();
-  history.replaceState({ st: st, n: 0 }, '', hashOf(st));
+  history.replaceState({ st: st, n: 0, g: gen }, '', hashOf(st));
+  if (TEST) { document.documentElement.classList.add('teste'); }
   render();
-  // no primeiro acesso, as áreas clicáveis aparecem por um instante para mostrar onde clicar
-  setHs(true); hsTimer = setTimeout(function () { setHs(false); }, 2600);
-  $('#hsT').addEventListener('change', function () { clearTimeout(hsTimer); });
+  if (!TEST) {
+    // no primeiro acesso, as áreas clicáveis aparecem por um instante para mostrar onde clicar
+    setHs(true); hsTimer = setTimeout(function () { setHs(false); }, 2600);
+    $('#hsT').addEventListener('change', function () { clearTimeout(hsTimer); });
+  }
 })();
